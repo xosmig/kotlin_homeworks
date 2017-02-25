@@ -1,6 +1,6 @@
 package com.xosmig.lazy
 
-import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater
 
 /**
  * An interface for lazy evaluations.
@@ -85,14 +85,18 @@ private class ThreadUnsafeLazyExpr<out T>(expression: () -> T) : Lazy<T> {
 private class ThreadSafeLazyExpr<out T>(expression: () -> T) : Lazy<T> {
     object NOTHING  // singleton
 
-    private var result: Any? = NOTHING
+    @Volatile private var result: Any? = NOTHING
     private var expression: (() -> T)? = expression
 
     override fun get(): T {
-        if (result == NOTHING) {  // to avoid unnecessary locks
+        // Uses double-checked locking.
+        var tmp = result
+        if (tmp == NOTHING) {
             synchronized(this) {
-                if (result == NOTHING) {
-                    result = expression!!.invoke()
+                tmp = result
+                if (tmp == NOTHING) {
+                    tmp = expression!!.invoke()
+                    result = tmp
                     expression = null
                 }
             }
@@ -103,22 +107,28 @@ private class ThreadSafeLazyExpr<out T>(expression: () -> T) : Lazy<T> {
     }
 }
 
+
 private class LockFreeLazyExpr<out T>(expression: () -> T) : Lazy<T> {
     companion object {
-        val NOTHING = Any()
+        private val resultUpdater =
+                AtomicReferenceFieldUpdater.newUpdater(LockFreeLazyExpr::class.java, Any::class.java, "result")
     }
 
-    private var result: AtomicReference<Any?> = AtomicReference(NOTHING)
-    @Volatile private var expression: (() -> T)? = expression
+    object NOTHING  // singleton
+
+    @Volatile private var result: Any? = NOTHING
+    private var expression: (() -> T)? = expression
 
     override fun get(): T {
         val expression = this.expression
-        if (expression != null) {  // checking for `result.get() == NOTHING` would be redundant
-            result.compareAndSet(NOTHING, expression())
+        if (resultUpdater.get(this) == NOTHING) {
+
+            resultUpdater.compareAndSet(this, NOTHING, expression!!.invoke())
             this.expression = null
         }
 
         @Suppress("UNCHECKED_CAST")
-        return result.get() as T
+        return resultUpdater.get(this) as T
     }
 }
+

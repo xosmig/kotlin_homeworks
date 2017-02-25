@@ -18,7 +18,7 @@ class LazyTest {
 
         val hello = "hello"
         val lazyHello1: Lazy<String> = Lazy.value(hello)
-        val lazyHello2: Lazy<Any> = lazyHello1  // O_o
+        val lazyHello2: Lazy<Any> = lazyHello1
         assertTrue(lazyHello2.get() === hello)
     }
 
