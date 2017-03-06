@@ -1,0 +1,42 @@
+group 'xosmig'
+version '1.0-SNAPSHOT'
+
+buildscript {
+    ext.kotlin_version = '1.0.6'
+    ext.dokka_version = '0.9.13'
+
+    repositories {
+        jcenter()
+    }
+    dependencies {
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+        classpath "org.jetbrains.dokka:dokka-gradle-plugin:$dokka_version"
+    }
+}
+
+apply plugin: 'kotlin'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    compile "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
+    testCompile 'junit:junit:4.12'
+    testCompile 'org.hamcrest:hamcrest-library:1.3'
+}
+
+apply plugin: 'application'
+mainClassName = 'MainKt'
+
+apply plugin: 'org.jetbrains.dokka'
+
+dokka {
+    moduleName = 'data'
+    outputFormat = 'javadoc'
+    outputDirectory = "$buildDir/javadoc"
+    processConfigurations = ['compile']
+    includes = ['packages.md', 'extra.md']
+    samples = ['samples/basic.kt', 'samples/advanced.kt']
+    sourceDirs = files('src/main/kotlin')
+}
