@@ -6,11 +6,13 @@ import java.io.ByteArrayOutputStream
 import java.io.ObjectOutputStream
 import java.nio.ByteBuffer
 import java.nio.channels.ReadableByteChannel
+import java.nio.channels.WritableByteChannel
 import java.nio.file.Files.isDirectory
 import java.nio.file.Files.newDirectoryStream
+import kotlin.reflect.KClass
 
-class OperationList: Operation {
-    override fun response(server: Server, command: String): Writer {
+class OperationList: Operation<String> {
+    override fun response(server: Server, clientChannel: WritableByteChannel, command: String): Writer {
         val children = newDirectoryStream(server.root.resolve(command)).toList()
         val content = ByteArrayOutputStream()
         val objectStream = ObjectOutputStream(content)
@@ -23,19 +25,20 @@ class OperationList: Operation {
 
         objectStream.flush()
         val buf = ByteBuffer.wrap(content.toByteArray())
-        return writer { clientChannel ->
+        return writer {
             clientChannel.write(buf)
             !buf.hasRemaining()
         }
     }
 
-    override fun request(path: String): Writer {
+    override fun request(serverChannel: WritableByteChannel, path: String): Writer {
         TODO("list request")
     }
 
-    /*override fun getResponse(channel: ReadableByteChannel): Writer {
+    override fun getResponse(inputChannel: ReadableByteChannel): Reader<String> {
         TODO("list get response")
-    }*/
+    }
 
+    override val clazz: KClass<String> get() = String::class
     override val id: Int get() = 1
 }

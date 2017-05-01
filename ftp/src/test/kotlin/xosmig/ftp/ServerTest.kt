@@ -1,3 +1,4 @@
+/*
 package xosmig.ftp
 
 import com.google.common.jimfs.Configuration
@@ -51,11 +52,9 @@ class ServerTest {
         connect().use { channel ->
             OperationGet().request(path).complete(channel)
             channel.shutdownOutput()
-            val buf = ByteBuffer.allocate(2048)
-            while (channel.read(buf) != -1) {}
-            buf.flip()
-            val size = buf.getLong().toInt()
-            val content = buf.getBytes()
+            val resultBuf = ByteBuffer.wrap(OperationGet().getFullResponse(channel))
+            val size = resultBuf.getLong().toInt()
+            val content = resultBuf.getBytes()
             assertEquals(size, content.size)
             assertArrayEquals(readAllBytes(root.resolve(path)), content)
         }
@@ -65,10 +64,9 @@ class ServerTest {
         connect().use { channel ->
             OperationList().request(path).complete(channel)
             channel.shutdownOutput()
-            val buf = ByteBuffer.allocate(2048)
-            while (channel.read(buf) != -1) {}
-            buf.flip()
-            val count = buf.getInt()
+            val resultBuf = ByteBuffer.wrap(OperationList().getFullResponse(channel))
+            val childrenCount = resultBuf.getInt()
+            
         }
     }
 
@@ -82,3 +80,4 @@ class ServerTest {
     fun testListSimple() {
     }
 }
+*/

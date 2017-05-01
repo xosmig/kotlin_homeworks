@@ -1,5 +1,6 @@
 package xosmig.ftp
 
+import xosmig.ftp.operations.Operation
 import xosmig.ftp.operations.OperationGet
 import xosmig.ftp.operations.OperationList
 import xosmig.ftp.operations.Writer
@@ -42,34 +43,40 @@ class Server(val root: Path): Runnable {
             val selectedKeys = selector.selectedKeys()
 
             for (key in selectedKeys) {
-                when {
-                    key.isAcceptable -> {
-                        val channel = (key.channel() as ServerSocketChannel).accept()
-                        channel.configureBlocking(false)
-                        val buffer = ByteBuffer.allocate(MAX_REQ_SIZE)
-                        channel.register(selector, SelectionKey.OP_READ).attach(buffer)
-                    }
+                key.channel().use { channel ->
+                    when {
+                        key.isAcceptable -> {
+                            val clientChannel = (channel as ServerSocketChannel).accept()
+                            clientChannel.configureBlocking(false)
+                            val buffer = ByteBuffer.allocate(MAX_REQ_SIZE)
+                            clientChannel.register(selector, SelectionKey.OP_READ).attach(buffer)
+                        }
 
-                    key.isReadable -> {
-                        val buffer = key.attachment() as ByteBuffer
-                        val channel = key.channel() as SocketChannel
+                        key.isReadable -> {
+                            val buffer = key.attachment() as ByteBuffer
+                            channel as SocketChannel
 
-                        if (channel.read(buffer) == -1) {
-                            buffer.flip()
-                            val type = buffer.getInt()
-                            val command = buffer.getString().trim()
-                            val writer = OPERATIONS.filter { type == it.id }.first().response(this, command)
-                            channel.register(selector, SelectionKey.OP_WRITE, writer)
+                            if (channel.read(buffer) == -1) {
+                                buffer.flip()
+                                val type = buffer.getInt()
+                                val command = buffer.getString().trim()
+                                val writer = OPERATIONS
+                                        .filter { type == it.id }
+                                        .first()
+                                        .response(this@Server, channel, command)
+                                channel.register(selector, SelectionKey.OP_WRITE, writer)
+                            }
+                        }
+
+                        key.isWritable -> {
+                            val writer = key.attachment() as Writer
+                            if (writer.write()) {
+                                key.cancel()
+                                key.channel().close()
+                            }
                         }
                     }
-
-                    key.isWritable -> {
-                        val writer = key.attachment() as Writer
-                        if (writer.write(key.channel() as WritableByteChannel)) {
-                            key.cancel()
-                            key.channel().close()
-                        }
-                    }
+                    run { /* just to turn the when expression to an statement */ }
                 }
             }
             selectedKeys.clear()
