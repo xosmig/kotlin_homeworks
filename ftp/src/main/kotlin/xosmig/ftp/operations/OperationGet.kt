@@ -1,15 +1,12 @@
 package xosmig.ftp.operations
 
 import xosmig.ftp.Server
-import xosmig.ftp.operations.Reader.Companion.reader
 import xosmig.ftp.operations.Writer.Companion.writer
-import xosmig.ftp.utils.BYTES_IN_INT
 import xosmig.ftp.utils.toBuffer
 import java.nio.ByteBuffer
 import java.nio.channels.FileChannel
 import java.nio.channels.ReadableByteChannel
 import java.nio.channels.WritableByteChannel
-import kotlin.reflect.KClass
 
 class OperationGet: Operation<ByteBuffer> {
     override fun response(server: Server, clientChannel: WritableByteChannel, command: String): Writer {
@@ -30,31 +27,19 @@ class OperationGet: Operation<ByteBuffer> {
         }
     }
 
-    override fun request(serverChannel: WritableByteChannel, path: String): Writer {
-        val pathBytes = path.toByteArray()
-        val buf = ByteBuffer.allocate(BYTES_IN_INT + pathBytes.size)
-        buf.putInt(id)
-        buf.put(pathBytes)
-        buf.flip()
-        return writer {
-            serverChannel.write(buf)
-            !buf.hasRemaining()
-        }
-    }
-
-    override fun getResponse(inputChannel: ReadableByteChannel): Reader<ByteBuffer> {
+    override fun getResponse(inputChannel: ReadableByteChannel, tokenHandler: (ByteBuffer) -> Unit): Writer {
         val buf = ByteBuffer.allocate(1024 * 4)
-        return reader {
+        return writer {
             buf.clear()
             if (inputChannel.read(buf) == -1) {
-                Reader.Result(true, null)
+                true
             } else {
                 buf.flip()
-                Reader.Result(false, buf)
+                tokenHandler(buf)
+                false
             }
         }
     }
 
-    override val clazz: KClass<ByteBuffer> get() = ByteBuffer::class
     override val id: Int get() = 2
 }

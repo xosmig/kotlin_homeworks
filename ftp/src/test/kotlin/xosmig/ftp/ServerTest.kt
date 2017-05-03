@@ -1,83 +1,24 @@
-/*
 package xosmig.ftp
 
-import com.google.common.jimfs.Configuration
-import com.google.common.jimfs.Jimfs
-import org.junit.After
-import org.junit.Assert.assertArrayEquals
-import org.junit.Assert.assertEquals
-import org.junit.Before
+import com.nhaarman.mockito_kotlin.mock
 import org.junit.Test
-import xosmig.ftp.operations.OperationGet
-import xosmig.ftp.operations.OperationList
-import xosmig.ftp.utils.getBytes
-import java.net.InetSocketAddress
-import java.nio.ByteBuffer
-import java.nio.channels.SocketChannel
-import java.nio.file.FileSystem
-import java.nio.file.Files.*
-import java.nio.file.Path
+import java.nio.channels.WritableByteChannel
 
-class ServerTest {
-    val fs: FileSystem = Jimfs.newFileSystem(Configuration.unix())
-    val rootDirName = "root"
-    val root: Path = fs.getPath("/$rootDirName")
-    val serverThread = Thread(Server(root))
+class ServerTest: ServerTestFields() {
 
-    @Before
-    fun initServer() {
-        createDirectories(root)
-        serverThread.start()
-        Thread.sleep(500)
+    @Test(timeout = 2000)
+    fun testGetDoesntFail() {
+        val (path, _) = createFile("subdir/my_file.txt", "Hello, World!")
+        client.get(path, mock<WritableByteChannel> {})
     }
 
-    @After
-    fun stopServer() {
-        serverThread.interrupt()
-        Thread.sleep(500)
-    }
-
-    fun connect(): SocketChannel = SocketChannel.open().apply {
-        this.connect(InetSocketAddress("localhost", Server.PORT))
-    }
-
-    fun createFile(relativePath: String, content: String = ""): Pair<String, Path> {
-        val path = root.resolve(relativePath)
-        createDirectories(path.parent)
-        write(path, content.toByteArray())
-        return Pair(relativePath, path)
-    }
-
-    fun assertGet(path: String) {
-        connect().use { channel ->
-            OperationGet().request(path).complete(channel)
-            channel.shutdownOutput()
-            val resultBuf = ByteBuffer.wrap(OperationGet().getFullResponse(channel))
-            val size = resultBuf.getLong().toInt()
-            val content = resultBuf.getBytes()
-            assertEquals(size, content.size)
-            assertArrayEquals(readAllBytes(root.resolve(path)), content)
-        }
-    }
-
-    fun assertList(path: String) {
-        connect().use { channel ->
-            OperationList().request(path).complete(channel)
-            channel.shutdownOutput()
-            val resultBuf = ByteBuffer.wrap(OperationList().getFullResponse(channel))
-            val childrenCount = resultBuf.getInt()
-            
-        }
-    }
-
-    @Test
+    @Test(timeout = 2000)
     fun testGetSimple() {
-        val (path) = createFile("subdir/my_file.txt", "Hello, World!")
+        val (path, _) = createFile("subdir/my_file.txt", "Hello, World!")
         assertGet(path)
     }
 
-    @Test
+    @Test(timeout = 2000)
     fun testListSimple() {
     }
 }
-*/

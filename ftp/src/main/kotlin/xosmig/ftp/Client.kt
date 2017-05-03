@@ -2,43 +2,36 @@ package xosmig.ftp
 
 import xosmig.ftp.operations.Operation
 import xosmig.ftp.operations.OperationGet
-import xosmig.ftp.operations.Reader
 import xosmig.ftp.operations.Writer
-import java.io.OutputStream
+import java.io.IOException
 import java.net.InetSocketAddress
-import java.nio.ByteBuffer
-import java.nio.channels.SelectionKey
+import java.nio.channels.SelectionKey.*
 import java.nio.channels.Selector
 import java.nio.channels.SocketChannel
 import java.nio.channels.WritableByteChannel
-import java.util.function.Consumer
-import kotlin.reflect.KClass
 
 class Client(val address: String = "localhost") {
-    private fun connect(): SocketChannel = SocketChannel.open().apply {
-        this.connect(InetSocketAddress("localhost", Server.PORT))
-    }
 
-    private fun<R: Any> perform(path: String, operation: Operation<R>, consumer: Consumer<R>) {
+    private fun<R> perform(path: String, operation: Operation<R>, tokenHandler: (R) -> Unit) {
         val selector = Selector.open()
 
         fun dispose() {
             for (key in selector.keys()) {
-                key.cancel()
                 key.channel().close()
             }
         }
 
         fun connected(channel: SocketChannel) {
-            channel.register(selector, SelectionKey.OP_WRITE, operation.request(channel, path))
+            channel.register(selector, OP_WRITE, operation.request(channel, path))
         }
 
-        SocketChannel.open().use { channel ->
+        run {
+            val channel = SocketChannel.open()
             channel.configureBlocking(false)
             if (channel.connect(InetSocketAddress(address, Server.PORT))) {
                 connected(channel)
             } else {
-                channel.register(selector, SelectionKey.OP_CONNECT)
+                channel.register(selector, OP_CONNECT)
             }
         }
 
@@ -52,31 +45,33 @@ class Client(val address: String = "localhost") {
             val selectedKeys = selector.selectedKeys()
 
             for (key in selectedKeys) {
-                (key.channel() as SocketChannel).use { channel ->
-                    when {
-                        key.isWritable -> {
-                            if ((key.attachment() as Writer).write()) {
-                                channel.register(selector, SelectionKey.OP_READ, operation.getResponse(channel))
-                            }
-                        }
+                if (!key.isValid) {
+                    continue
+                }
 
-                        key.isReadable -> {
-                            val res = (key.attachment() as Reader<*>).read()
-                            operation.clazz.isInstance(res.token)
-                            @Suppress("UNCHECKED_CAST")
-                            consumer.accept(res.token as R)
-                            if (res.finished) {
-                                dispose()
-                                return@perform
-                            }
+                val channel = key.channel() as SocketChannel
+                when {
+                    key.isWritable -> {
+                        if ((key.attachment() as Writer).write()) {
+                            channel.shutdownOutput()
+                            channel.register(selector, OP_READ, operation.getResponse(channel, tokenHandler))
                         }
+                    }
 
-                        key.isConnectable -> {
+                    key.isReadable -> {
+                        if ((key.attachment() as Writer).write()) {
+                            dispose()
+                            return@perform
+                        }
+                    }
+
+                    key.isConnectable -> {
+                        try {
                             if (channel.finishConnect()) {
                                 connected(channel)
-                            } else {
-                                assert(false) { "unreachable" }
                             }
+                        } catch (e: IOException) {
+                            TODO("CONNECTION FAILURE")
                         }
                     }
                 }
@@ -85,9 +80,8 @@ class Client(val address: String = "localhost") {
     }
 
     fun get(path: String, output: WritableByteChannel) {
-        perform(path, OperationGet(), Consumer { buffer ->
+        perform(path, OperationGet()) { buffer ->
             output.write(buffer)
-        })
+        }
     }
 }
-

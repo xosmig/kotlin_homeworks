@@ -16,7 +16,11 @@ fun ByteBuffer.getString(): String {
     return res
 }
 
-fun ByteBuffer.getBytes(): ByteArray = Arrays.copyOfRange(this.array(), this.position(), this.limit())
+fun ByteBuffer.getBytes(): ByteArray {
+    val res = Arrays.copyOfRange(this.array(), this.position(), this.limit())
+    this.position(this.limit())
+    return res
+}
 
 fun<T> Array<T>.swapElements(a: Int, b: Int) {
     val tmp = this[a]

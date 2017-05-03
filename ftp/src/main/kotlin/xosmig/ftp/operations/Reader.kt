@@ -1,3 +1,4 @@
+/*
 package xosmig.ftp.operations
 
 @FunctionalInterface
@@ -12,3 +13,4 @@ interface Reader<out T> {
 
     fun read(): Result<T>
 }
+*/

@@ -2,43 +2,59 @@ package xosmig.ftp.operations
 
 import xosmig.ftp.Server
 import xosmig.ftp.operations.Writer.Companion.writer
+import xosmig.ftp.utils.getBytes
+import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
+import java.io.ObjectInputStream
 import java.io.ObjectOutputStream
 import java.nio.ByteBuffer
 import java.nio.channels.ReadableByteChannel
 import java.nio.channels.WritableByteChannel
 import java.nio.file.Files.isDirectory
 import java.nio.file.Files.newDirectoryStream
-import kotlin.reflect.KClass
 
-class OperationList: Operation<String> {
+class OperationList: Operation<List<String>> {
     override fun response(server: Server, clientChannel: WritableByteChannel, command: String): Writer {
         val children = newDirectoryStream(server.root.resolve(command)).toList()
-        val content = ByteArrayOutputStream()
-        val objectStream = ObjectOutputStream(content)
-
-        objectStream.writeInt(children.size)
-        for (child in children) {
-            objectStream.writeObject(child.fileName)
-            objectStream.writeBoolean(isDirectory(child))
+        ByteArrayOutputStream().use { content ->
+            ObjectOutputStream(content).use { objectStream ->
+                objectStream.writeInt(children.size)
+                for (child in children) {
+                    objectStream.writeObject(child.fileName)
+                    objectStream.writeBoolean(isDirectory(child))
+                }
+            }
+            val buf = ByteBuffer.wrap(content.toByteArray())
+            return writer {
+                clientChannel.write(buf)
+                !buf.hasRemaining()
+            }
         }
+    }
 
-        objectStream.flush()
-        val buf = ByteBuffer.wrap(content.toByteArray())
+    override fun getResponse(inputChannel: ReadableByteChannel, tokenHandler: (List<String>) -> Unit): Writer {
+        val buf = ByteBuffer.allocate(1024 * 8)
         return writer {
-            clientChannel.write(buf)
-            !buf.hasRemaining()
+            if (inputChannel.read(buf) == -1) {
+                buf.flip()
+                val bytes = buf.getBytes()
+                ByteArrayInputStream(bytes).use { content ->
+                    ObjectInputStream(content).use { objectStream ->
+                        val count = objectStream.readInt()
+                        val res = ArrayList<String>(count)
+                        for (i in 1..count) {
+                            res.add(objectStream.readObject() as String)
+                        }
+                        assert(objectStream.available() == 0)
+                        tokenHandler(res)
+                    }
+                }
+                true
+            } else {
+                false
+            }
         }
     }
 
-    override fun request(serverChannel: WritableByteChannel, path: String): Writer {
-        TODO("list request")
-    }
-
-    override fun getResponse(inputChannel: ReadableByteChannel): Reader<String> {
-        TODO("list get response")
-    }
-
-    override val clazz: KClass<String> get() = String::class
     override val id: Int get() = 1
 }
