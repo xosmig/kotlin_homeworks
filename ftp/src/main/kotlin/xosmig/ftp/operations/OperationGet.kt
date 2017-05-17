@@ -11,7 +11,7 @@ import java.nio.channels.WritableByteChannel
 class OperationGet: Operation<ByteBuffer> {
     override fun response(server: Server, clientChannel: WritableByteChannel, command: String): Writer {
         val fileChannel = FileChannel.open(server.root.resolve(command))
-        val fileLen = fileChannel.size()
+        val fileLen: Long = fileChannel.size()
         val sizeBuf = fileLen.toBuffer()
         var filePos: Long = 0
 

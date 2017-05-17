@@ -3,18 +3,21 @@ package xosmig.ftp
 import com.google.common.jimfs.Configuration
 import com.google.common.jimfs.Jimfs
 import org.junit.After
+import org.junit.Assert.assertArrayEquals
+import org.junit.Assert.assertEquals
 import org.junit.Before
+import xosmig.ftp.utils.getBytes
+import java.io.ByteArrayOutputStream
 import java.net.InetSocketAddress
+import java.nio.ByteBuffer
+import java.nio.channels.Channels
 import java.nio.channels.SocketChannel
 import java.nio.file.FileSystem
 import java.nio.file.Files
+import java.nio.file.Files.readAllBytes
 import java.nio.file.Path
 
 abstract class ServerTestFields {
-
-    companion object {
-        const val MAX_FILE_SIZE: Int = 1024 * 4
-    }
 
     val fs: FileSystem = Jimfs.newFileSystem(Configuration.unix())
     val rootDirName = "root"
@@ -47,17 +50,17 @@ abstract class ServerTestFields {
     }
 
     fun assertGet(path: String) {
-//        val resultBuf = ByteArrayOutputStream().use { byteStream ->
-//            Channels.newChannel(byteStream).use { outputChannel ->
-//                client.get(path, outputChannel)
-//            }
-//            ByteBuffer.wrap(byteStream.toByteArray())
-//        }
-//
-//        val size = resultBuf.getLong().toInt()
-//        val content = resultBuf.getBytes()
-//        assertEquals(size, content.size)
-//        assertArrayEquals(readAllBytes(root.resolve(path)), content)
+        val resultBuf = ByteArrayOutputStream().use { byteStream ->
+            Channels.newChannel(byteStream).use { outputChannel ->
+                client.get(path, outputChannel)
+            }
+            ByteBuffer.wrap(byteStream.toByteArray())
+        }
+
+        val size = resultBuf.getLong().toInt()
+        val content = resultBuf.getBytes()
+        assertEquals(size, content.size)
+        assertArrayEquals(readAllBytes(root.resolve(path)), content)
     }
 
     /*fun assertList(path: String) {
