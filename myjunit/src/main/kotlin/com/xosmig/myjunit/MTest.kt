@@ -1,4 +1,4 @@
-package xosmig.myjunit
+package com.xosmig.myjunit
 
 import kotlin.reflect.KClass
 

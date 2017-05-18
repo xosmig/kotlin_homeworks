@@ -1,0 +1,4 @@
+#!/bin/bash
+
+./gradlew check
+./gradlew run -PrunArgs="['build/kotlin-classes/main', 'build/kotlin-classes/test']"

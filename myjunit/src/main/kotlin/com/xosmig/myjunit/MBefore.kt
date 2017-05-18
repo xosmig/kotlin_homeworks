@@ -1,4 +1,4 @@
-package xosmig.myjunit
+package com.xosmig.myjunit
 
 /**
  * Annotating a `public void` method with [MBefore] causes that method to be run before every [MTest] method.

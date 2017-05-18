@@ -1,4 +1,4 @@
-package xosmig.myjunit
+package com.xosmig.myjunit
 
 /**
  * Annotating a `public void` method with [MAfter] causes that method to be run after every [MTest] method.

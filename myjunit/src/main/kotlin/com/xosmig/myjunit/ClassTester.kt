@@ -1,4 +1,4 @@
-package xosmig.myjunit
+package com.xosmig.myjunit
 
 import java.lang.reflect.Method
 import java.util.ArrayList
@@ -111,9 +111,9 @@ class ClassTester(val testClass: Class<*>) {
         }
 
         return if (errors.isNotEmpty()) {
-            TestResult.Fail(testClass, testMethod, errors, time)
+            TestResult.Failed(testClass, testMethod, errors, time)
         } else {
-            TestResult.Success(testClass, testMethod, time)
+            TestResult.Passed(testClass, testMethod, time)
         }
     }
 }
