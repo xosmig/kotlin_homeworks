@@ -49,7 +49,7 @@ open class TestResult private constructor(val testClass: Class<*>, val test: Met
 
         override fun toString(): String {
             val writer = StringWriter()
-            writer.append("Test $name failed in $time ms. See errors bellow.")
+            writer.append("Test $name failed in $time ms. See errors bellow.\n")
             for (error in errors) {
                 error.printStackTrace(PrintWriter(writer))
             }

@@ -1,5 +1,6 @@
 package com.xosmig.myjunit
 
+import java.lang.reflect.InvocationTargetException
 import java.lang.reflect.Method
 import java.util.ArrayList
 
@@ -72,8 +73,23 @@ class ClassTester(val testClass: Class<*>) {
         }
 
         val errors = ArrayList<Throwable>()
-        fun processError(e: Throwable) = errors.add(e)
+        var expectedHappened = (annotation.expected == NoErrorsExpected::class)
+        fun processError(original: Throwable, fromTestInvocation: Boolean = false) {
+            val cause = if (original is InvocationTargetException || original is InstantiationException) {
+                original.cause
+            } else {
+                throw original
+            } ?: return
 
+            if (fromTestInvocation && annotation.expected == cause::class) {
+                expectedHappened = true
+                return
+            }
+
+            errors.add(cause)
+        }
+
+        var testExecuted = false
         val startTime = System.currentTimeMillis()
 
         try {
@@ -84,11 +100,10 @@ class ClassTester(val testClass: Class<*>) {
                     beforeMethod.invoke(instance)
                 }
                 try {
+                    testExecuted = true
                     testMethod.invoke(instance)
                 } catch (e: Throwable) {
-                    if (annotation.expected != e::class) {
-                        throw e
-                    }
+                    processError(e, fromTestInvocation = true)
                 }
             } catch (e: Throwable) {
                 processError(e)
@@ -106,7 +121,7 @@ class ClassTester(val testClass: Class<*>) {
         }
 
         val time = System.currentTimeMillis() - startTime
-        if (annotation.expected != NoErrorsExpected::class && errors.isEmpty()) {
+        if (testExecuted && !expectedHappened) {
             errors.add(ExpectedNotHappened(annotation.expected))
         }
 
